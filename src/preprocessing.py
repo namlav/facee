@@ -1,9 +1,11 @@
+import argparse
+from pathlib import Path
+
 import cv2
 import numpy as np
 import pandas as pd
-import torch
 
-from .config import EMOTIONS, IMG_SIZE
+from .config import EMOTIONS, IMG_SIZE, PROCESSED_DIR, RAW_DIR
 
 
 def preprocess_image(image):
@@ -18,6 +20,8 @@ def preprocess_image(image):
 
 
 def preprocess_image_tensor(image):
+    import torch
+
     image = preprocess_image(image)
     tensor = torch.from_numpy(image).float().unsqueeze(0)
     return tensor
@@ -49,7 +53,7 @@ def normalize_image(image, mean=0.5, std=0.5):
     return (image - mean) / std
 
 
-def prepare_fer2013_csv(raw_csv_path, output_path):
+def prepare_fer2013_csv(raw_csv_path, output_path, apply_equalization=False):
     df = pd.read_csv(raw_csv_path)
     required_cols = {'emotion', 'pixels'}
     if not required_cols.issubset(df.columns):
@@ -60,10 +64,17 @@ def prepare_fer2013_csv(raw_csv_path, output_path):
         try:
             pixels = str(row['pixels']).split()
             if len(pixels) == expected_pixels:
+                if apply_equalization:
+                    image = np.array(pixels, dtype=np.uint8).reshape(IMG_SIZE, IMG_SIZE)
+                    image = apply_histogram_equalization(image)
+                    row = row.copy()
+                    row['pixels'] = ' '.join(map(str, (image * 255).astype(np.uint8).reshape(-1)))
                 valid_rows.append(row)
         except Exception:
             continue
     cleaned = pd.DataFrame(valid_rows)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     cleaned.to_csv(output_path, index=False)
     return cleaned
 
@@ -85,3 +96,26 @@ def explore_dataset(csv_path):
         'sample_images': sample_images,
         'example_pixels_shape': example_pixels.shape,
     }
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Clean and optionally normalize FER2013 CSV.')
+    parser.add_argument('--raw_csv', default=str(RAW_DIR / 'fer2013.csv'), help='Path to raw FER2013 CSV.')
+    parser.add_argument(
+        '--output',
+        default=str(PROCESSED_DIR / 'fer2013_clean.csv'),
+        help='Path to cleaned output CSV.',
+    )
+    parser.add_argument(
+        '--equalize',
+        action='store_true',
+        help='Apply CLAHE histogram equalization to every image before saving.',
+    )
+    args = parser.parse_args()
+
+    cleaned = prepare_fer2013_csv(args.raw_csv, args.output, apply_equalization=args.equalize)
+    print(f'Saved {len(cleaned)} cleaned rows to {args.output}')
+
+
+if __name__ == '__main__':
+    main()
