@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import torch
 
 EMOTIONS = {
@@ -31,6 +32,6 @@ IMG_SIZE = 48
 NUM_CLASSES = 7
 IN_CHANNELS = 1
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 RANDOM_SEED = 42
