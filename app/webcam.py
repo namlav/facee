@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cv2
 
 from src.config import DEVICE, IMG_SIZE
@@ -6,7 +8,9 @@ from app.inference import initialize_model, draw_emotion_on_frame
 
 
 class WebcamProcessor:
-    def __init__(self, model_path='models/best_model.pth'):
+    def __init__(self, model_path=None):
+        if model_path is None:
+            model_path = str(Path(__file__).resolve().parent.parent / 'models' / 'best_model.pth')
         self.model = initialize_model(model_path)
         self.device = DEVICE
         cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
@@ -49,5 +53,5 @@ class WebcamProcessor:
         cv2.destroyAllWindows()
 
 
-def get_webcam_processor(model_path='models/best_model.pth'):
+def get_webcam_processor(model_path=None):
     return WebcamProcessor(model_path)
