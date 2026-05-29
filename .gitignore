@@ -19,7 +19,7 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 models/checkpoints/*
-models/*.pth
+!models/*.pth
 !models/.gitkeep
 results/confusion_matrix/*
 results/metrics/*
