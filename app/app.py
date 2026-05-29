@@ -182,7 +182,7 @@ def about_page():
     st.title("About")
 
     st.subheader("Contributor")
-    st.markdown("Built with ❤️ by the Nam Lav")
+    st.markdown("Built with ❤️ by Nam Lav")
 
     st.subheader("Technologies Used")
     techs = {
