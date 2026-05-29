@@ -7,9 +7,9 @@ import torch
 import torch.nn as nn
 from PIL import Image
 
-from .config import EMOTIONS, EMOTION_LIST, NUM_CLASSES, DEVICE, MODELS_DIR
-from .model import EmotionCNN
-from .preprocessing import preprocess_image
+from src.config import EMOTIONS, EMOTION_LIST, NUM_CLASSES, DEVICE, MODELS_DIR
+from src.model import EmotionCNN
+from src.preprocessing import preprocess_image
 
 
 def get_emotion_label(class_idx):
