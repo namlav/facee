@@ -7,18 +7,25 @@ import torch
 import torch.nn as nn
 from PIL import Image
 
-from .config import EMOTIONS, EMOTION_LIST, NUM_CLASSES, DEVICE, MODELS_DIR
-from .model import EmotionCNN
-from .preprocessing import preprocess_image
+from src.config import EMOTIONS, EMOTION_LIST, NUM_CLASSES, DEVICE, MODELS_DIR
+from src.model import EmotionCNN
+from src.preprocessing import preprocess_image
 
 
 def get_emotion_label(class_idx):
     return EMOTIONS[int(class_idx)]
 
 
+def _extract_state_dict(checkpoint):
+    """Accept either a raw model state_dict or a training checkpoint dict."""
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        return checkpoint['model_state_dict']
+    return checkpoint
+
+
 def load_model(model_path, device, model_class=EmotionCNN):
     model = model_class(num_classes=NUM_CLASSES).to(device)
-    state_dict = torch.load(model_path, map_location=device)
+    state_dict = _extract_state_dict(torch.load(model_path, map_location=device))
     if any(k.startswith('module.') for k in state_dict):
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict)

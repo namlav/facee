@@ -12,6 +12,7 @@ from sklearn.metrics import (
 
 from .config import EMOTIONS, EMOTION_LIST, NUM_CLASSES, DEVICE, MODELS_DIR, RESULTS_DIR
 from .model import EmotionCNN
+from .predict import _extract_state_dict
 from .dataset import get_dataloaders
 from .utils import ensure_dirs, plot_confusion_matrix as plot_cm_util
 
@@ -96,7 +97,7 @@ def main():
     device = torch.device(args.device)
 
     model = EmotionCNN(num_classes=NUM_CLASSES).to(device)
-    state_dict = torch.load(args.model_path, map_location=device)
+    state_dict = _extract_state_dict(torch.load(args.model_path, map_location=device))
     if any(k.startswith('module.') for k in state_dict):
         state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     model.load_state_dict(state_dict)

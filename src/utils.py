@@ -25,7 +25,7 @@ def set_seed(seed=RANDOM_SEED):
 
 
 def get_device():
-    return DEVICE
+    return torch.device(DEVICE)
 
 
 def ensure_dirs():
@@ -54,7 +54,7 @@ def save_checkpoint(model, optimizer, epoch, loss, acc, path):
 
 
 def load_checkpoint(path, model, optimizer=None):
-    checkpoint = torch.load(path, map_location=DEVICE)
+    checkpoint = torch.load(path, map_location=get_device())
     model.load_state_dict(checkpoint['model_state_dict'])
     if optimizer is not None:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -6,12 +8,16 @@ from src.config import DEVICE, IMG_SIZE
 from src.model import EmotionCNN
 from src.predict import load_model, predict_image
 
+_MODEL_DIR = Path(__file__).resolve().parent.parent / 'models'
+
 _model = None
 _device = None
 
 
-def initialize_model(model_path='models/best_model.pth'):
+def initialize_model(model_path=None):
     global _model, _device
+    if model_path is None:
+        model_path = str(_MODEL_DIR / 'best_model.pth')
     _device = DEVICE
     _model = load_model(model_path, _device, EmotionCNN)
     return _model
