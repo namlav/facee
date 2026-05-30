@@ -120,7 +120,7 @@ Display Result
 
 # 8. Team Structure
 
-## Team Member A — Data Engineer & Documentation
+## [@QuocDuyNguyen](https://github.com/QuocDuyNguyen) — Data Engineer & Documentation
 
 ### Responsibilities
 
@@ -150,7 +150,7 @@ Display Result
 
 ---
 
-## Team Member B — AI Engineer
+## [@Phong2607-H](https://github.com/Phong2607-H) — AI Engineer
 
 ### Responsibilities
 
@@ -180,7 +180,7 @@ Display Result
 
 ---
 
-## Team Member C — Application Engineer
+## [@namlav](https://github.com/namlav) — Application Engineer
 
 ### Responsibilities
 
@@ -208,49 +208,33 @@ Display Result
 
 ---
 
-# 9. Development Timeline
+# 9. Development Tasks
 
-## Week 1
-
-### Team A
+### [@QuocDuyNguyen](https://github.com/QuocDuyNguyen)
 
 - Dataset preparation
-- EDA
+- Data augmentation
+- Dataset optimization
 - Preprocessing
 
-### Team B
+### [@Phong2607-H](https://github.com/Phong2607-H)
 
 - Build baseline CNN
 - Initial training
-
-### Team C
-
-- Setup Streamlit app
-- Basic UI structure
-
----
-
-## Week 2
-
-### Team A
-
-- Data augmentation
-- Dataset optimization
-
-### Team B
-
 - Hyperparameter tuning
 - Evaluation metrics
 - Save best model
 
-### Team C
+### [@namlav](https://github.com/namlav)
 
+- Setup Streamlit app
+- Basic UI structure
 - Webcam integration
 - Model inference integration
 
 ---
 
-## Week 3
+## Final Result
 
 ### Entire Team
 
