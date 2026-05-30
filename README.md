@@ -243,9 +243,9 @@ Confusion matrices, precision/recall/F1 reports, and training curves are saved i
 
 | Role                  | Member          |
 |-----------------------|-----------------|
-| Data Engineer & Documentation | Team A |
-| AI Engineer                    | Team B |
-| Application Engineer           | Team C |
+| Data Engineer & Documentation | Nguyễn Quốc Duy - [@QuocDuyNguyen](https://github.com/QuocDuyNguyen) |
+| AI Engineer                    | Nguyễn Thanh Phong - [@Phong2607-H](https://github.com/Phong2607-H)|
+| Application Engineer           | La Văn Nam (author) - [@namlav](https://github.com/namlav) |
 
 ## License
 
