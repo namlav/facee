@@ -12,8 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import DEVICE, EMOTIONS
 from src.predict import predict_image
-from app.inference import initialize_model, draw_emotion_on_frame, detect_faces
+from app.inference import initialize_model, draw_emotion_on_frame, detect_faces, put_unicode_text
 from app.webcam import get_webcam_processor
+from matplotlib import pyplot as plt
+
+from app.export_utils import export_to_csv, export_to_image, export_to_pdf
 
 st.set_page_config(page_title="Facial Emotion Recognition", layout="wide")
 
@@ -281,6 +284,53 @@ hr {
     border-radius: 12px !important;
     color: white !important;
 }
+
+.dashboard-container {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 1.8rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    margin-bottom: 1.5rem;
+}
+
+.stDownloadButton > button {
+    background: linear-gradient(135deg, #00cc66, #00ff88) !important;
+    border: none !important;
+    border-radius: 50px !important;
+    color: #0a2e1a !important;
+    font-weight: 700 !important;
+    font-family: 'Poppins', sans-serif !important;
+    padding: 0.6rem 2.5rem !important;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    box-shadow: 0 4px 20px rgba(0, 255, 136, 0.25) !important;
+}
+
+.stDownloadButton > button:hover {
+    transform: translateY(-3px) scale(1.06) !important;
+    box-shadow: 0 12px 40px rgba(0, 255, 136, 0.5) !important;
+}
+
+[data-testid="stMetricLabel"] p,
+[data-testid="stMetricLabel"] span,
+[data-testid="stMetricValue"] p,
+[data-testid="stMetricValue"] span {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+    line-height: 1.3 !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.8rem !important;
+    margin-bottom: 0 !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 1.4rem !important;
+    word-break: break-word !important;
+}
 </style>
 <div class="floating-face" style="--left:3%;--top:8%;--size:32px;--dur:13s;--delay:0s">😊</div>
 <div class="floating-face" style="--left:92%;--top:15%;--size:28px;--dur:15s;--delay:2s">😢</div>
@@ -306,6 +356,109 @@ def glass_container(content_func):
         st.markdown("</div>", unsafe_allow_html=True)
 
     return wrapper
+
+
+def show_dashboard(results, total_label="Tổng số khuôn mặt"):
+    emotion_counts = {}
+    for r in results:
+        em = r['emotion']
+        emotion_counts[em] = emotion_counts.get(em, 0) + 1
+
+    total_faces = len(results)
+
+    if total_faces > 0:
+        most_common = max(emotion_counts, key=emotion_counts.get)
+        most_common_count = emotion_counts[most_common]
+        most_common_pct = (most_common_count / total_faces) * 100
+    else:
+        most_common = "N/A"
+        most_common_pct = 0
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(total_label, total_faces)
+    with col2:
+        st.metric("Biểu cảm phổ biến", most_common)
+    with col3:
+        st.metric("Tỉ lệ phổ biến", f"{most_common_pct:.1f}%")
+    with col4:
+        st.metric("Loại biểu cảm", f"{len(emotion_counts)}/7")
+
+    col_chart1, col_chart2 = st.columns(2)
+
+    with col_chart1:
+        st.subheader("Phân bố biểu cảm")
+        df_counts = pd.DataFrame({
+            'Biểu cảm': list(emotion_counts.keys()),
+            'Số lượng': list(emotion_counts.values())
+        }).set_index('Biểu cảm')
+        st.bar_chart(df_counts, color='#00ff88')
+
+        with col_chart2:
+            st.subheader("Tỉ lệ phần trăm")
+            fig, ax = plt.subplots(figsize=(5, 3.5))
+            fig.patch.set_alpha(0)
+            ax.set_facecolor('none')
+            colors = plt.cm.Set2(np.linspace(0, 1, len(emotion_counts)))
+            wedges, texts, autotexts = ax.pie(
+                list(emotion_counts.values()),
+                labels=None,
+                autopct='%1.1f%%',
+                colors=colors,
+                startangle=140,
+                textprops={'color': 'white', 'fontsize': 9},
+                pctdistance=0.75
+            )
+            for t in autotexts:
+                t.set_color('white')
+            ax.legend(
+                wedges, list(emotion_counts.keys()),
+                loc='center left', bbox_to_anchor=(1, 0.5),
+                fontsize=8, frameon=False,
+                labelcolor='white'
+            )
+            st.pyplot(fig)
+            plt.close(fig)
+
+
+def show_export_buttons(results, annotated_image=None):
+    st.subheader("📥 Tải xuống kết quả")
+
+    if annotated_image is not None:
+        col1, col2, col3 = st.columns(3)
+    else:
+        col1, col2 = st.columns(2)
+
+    with col1:
+        csv_data, csv_name = export_to_csv(results)
+        st.download_button(
+            label="📥 Xuất CSV",
+            data=csv_data,
+            file_name=csv_name,
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    with col2:
+        pdf_data, pdf_name = export_to_pdf(results, len(results))
+        st.download_button(
+            label="📥 Xuất PDF",
+            data=pdf_data,
+            file_name=pdf_name,
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    if annotated_image is not None:
+        with col3:
+            img_data, img_name = export_to_image(annotated_image, results)
+            st.download_button(
+                label="📥 Xuất IMAGE",
+                data=img_data,
+                file_name=img_name,
+                mime="image/png",
+                use_container_width=True,
+            )
 
 
 @glass_container
@@ -357,46 +510,64 @@ def upload_page_content():
         image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("Uploaded Image")
+            st.subheader("Ảnh đã tải lên")
             st.image(image, use_container_width=True)
         with col2:
-            st.subheader("Prediction Results")
-            if st.button("Predict Emotion", type="primary"):
-                with st.spinner("Analyzing..."):
+            if st.button("Nhận diện biểu cảm", type="primary"):
+                with st.spinner("Đang phân tích..."):
                     model = initialize_model()
                     faces = detect_faces(image_bgr)
+                    annotated = image_bgr.copy()
+                    all_results = []
+
                     if len(faces) > 0:
-                        x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
                         gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-                        face_roi = gray[y : y + h, x : x + w]
-                        face_roi = cv2.resize(face_roi, (48, 48))
-                        prediction = predict_image(model, face_roi, DEVICE)
-                        annotated = draw_emotion_on_frame(
-                            image_bgr.copy(), prediction, (x, y, w, h)
-                        )
-                        annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                        col1.image(annotated_rgb, use_container_width=True)
+                        for (x, y, w, h) in faces:
+                            face_roi = gray[y : y + h, x : x + w]
+                            face_roi = cv2.resize(face_roi, (48, 48))
+                            prediction = predict_image(model, face_roi, DEVICE)
+                            prediction['face_box'] = (x, y, w, h)
+                            all_results.append(prediction)
+                            annotated = draw_emotion_on_frame(
+                                annotated, prediction, (x, y, w, h)
+                            )
                     else:
-                        prediction = predict_image(model, image, DEVICE)
-                    emotion = prediction["emotion"]
-                    confidence = prediction["confidence"]
-                    emoji = EMOJI_MAP.get(emotion, "")
-                    st.markdown(
-                        f"<div style='text-align:center;font-size:2rem'>{emoji} <strong>{emotion}</strong></div>",
-                        unsafe_allow_html=True,
-                    )
-                    st.metric("Confidence", f"{confidence:.1f}%")
-                    st.progress(int(confidence))
-                    st.subheader("Probability Distribution")
-                    prob_df = pd.DataFrame(
-                        {
-                            "Emotion": list(prediction["probabilities"].keys()),
-                            "Probability (%)": list(
-                                prediction["probabilities"].values()
-                            ),
-                        }
-                    ).set_index("Emotion")
-                    st.bar_chart(prob_df)
+                        put_unicode_text(annotated, "Không phát hiện khuôn mặt trong ảnh", (10, 30), font_size=14, color=(0, 0, 255))
+
+                    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                    st.session_state.upload_results = all_results
+                    st.session_state.upload_annotated = annotated_rgb
+
+        if st.session_state.get('upload_results') is not None:
+            results = st.session_state.upload_results
+            annotated_rgb = st.session_state.upload_annotated
+
+            with col1:
+                st.subheader("Kết quả nhận diện")
+                st.image(annotated_rgb, use_container_width=True)
+
+            with col2:
+                if len(results) > 0:
+                    show_dashboard(results)
+                    st.markdown("---")
+                    show_export_buttons(results, annotated_rgb)
+
+            if len(results) > 0:
+                st.markdown("---")
+                st.subheader("Chi tiết kết quả phát hiện")
+                detail_rows = []
+                for i, r in enumerate(results):
+                    box = r.get('face_box')
+                    detail_rows.append({
+                        "STT": i + 1,
+                        "Biểu cảm": r['emotion'],
+                        "Độ tin cậy": f"{r.get('confidence', 0):.1f}%",
+                        "Vị trí": f"({box[0]}, {box[1]})" if box else "Toàn bộ ảnh",
+                    })
+                st.dataframe(pd.DataFrame(detail_rows), use_container_width=True)
+    else:
+        st.session_state.upload_results = None
+        st.session_state.upload_annotated = None
 
 
 def upload_page():
@@ -407,38 +578,95 @@ def upload_page():
 
 @glass_container
 def webcam_page_content():
-    processor = get_webcam_processor()
     if "webcam_on" not in st.session_state:
         st.session_state.webcam_on = False
+
     col1, col2, col3 = st.columns(3)
     with col2:
-        if st.button(
-            "Start Webcam" if not st.session_state.webcam_on else "Stop Webcam"
-        ):
+        btn_label = "📷 Bật Webcam" if not st.session_state.webcam_on else "⏹ Tắt Webcam"
+        if st.button(btn_label):
             st.session_state.webcam_on = not st.session_state.webcam_on
-            if not st.session_state.webcam_on:
+            if st.session_state.webcam_on:
+                st.session_state.webcam_results = []
+                st.session_state.webcam_emotion_counts = {}
+                st.session_state.webcam_total_detections = 0
+            else:
                 st.rerun()
+
     if st.session_state.webcam_on:
         stframe = st.image([])
         fps_display = st.empty()
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            st.error(
-                "Không thể truy cập webcam. Vui lòng kiểm tra quyền truy cập camera của bạn."
-            )
+            st.error("Không thể truy cập webcam. Vui lòng kiểm tra quyền truy cập camera.")
             st.session_state.webcam_on = False
             st.rerun()
+
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
+        model = initialize_model()
+        face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        )
         fps_counter = 0
         fps = 0
         last_time = time.time()
+        frame_idx = 0
+        process_every_n = 2
+        last_faces = []
+        last_results = []
+
         while st.session_state.webcam_on:
             ret, frame = cap.read()
             if not ret:
                 st.error("Không thể chụp khung hình.")
                 break
-            annotated = processor.process_frame(frame)
-            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+
+            frame = cv2.flip(frame, 1)
+            frame_results = []
+            display_frame = frame.copy()
+
+            if frame_idx % process_every_n == 0:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                small_gray = cv2.resize(gray, (0, 0), fx=0.5, fy=0.5)
+                faces = face_cascade.detectMultiScale(
+                    small_gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30)
+                )
+                if len(faces) > 0:
+                    last_faces = [(x * 2, y * 2, w * 2, h * 2) for (x, y, w, h) in faces]
+                    last_results = []
+                    for (x, y, w, h) in last_faces:
+                        face_roi = gray[y:y + h, x:x + w]
+                        face_resized = cv2.resize(face_roi, (48, 48))
+                        prediction = predict_image(model, face_resized, DEVICE)
+                        last_results.append(prediction)
+                else:
+                    last_faces = []
+                    last_results = []
+
+            if len(last_faces) > 0:
+                for i, (x, y, w, h) in enumerate(last_faces):
+                    if i < len(last_results):
+                        prediction = last_results[i]
+                        display_frame = draw_emotion_on_frame(display_frame, prediction, (x, y, w, h))
+                        frame_results.append(prediction)
+            else:
+                put_unicode_text(display_frame, "Không phát hiện khuôn mặt", (10, 30), font_size=14, color=(0, 0, 255))
+
+            if frame_idx % 5 == 0:
+                for pred in frame_results:
+                    st.session_state.webcam_results.append(pred)
+                    em = pred['emotion']
+                    st.session_state.webcam_emotion_counts[em] = \
+                        st.session_state.webcam_emotion_counts.get(em, 0) + 1
+                    st.session_state.webcam_total_detections += 1
+            frame_idx += 1
+
+            annotated_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
             stframe.image(annotated_rgb, channels="RGB", use_container_width=True)
+
             fps_counter += 1
             now = time.time()
             if now - last_time >= 1.0:
@@ -446,8 +674,97 @@ def webcam_page_content():
                 fps_counter = 0
                 last_time = now
                 fps_display.metric("FPS", fps)
+
         cap.release()
         st.session_state.webcam_on = False
+        st.rerun()
+
+    if st.session_state.get('webcam_total_detections', 0) > 0:
+        st.markdown("---")
+        st.title("📊 Thống kê phiên nhận diện")
+        st.markdown('<div class="dashboard-container">', unsafe_allow_html=True)
+
+        emotion_counts = st.session_state.webcam_emotion_counts
+        total = st.session_state.webcam_total_detections
+
+        if emotion_counts:
+            most_common = max(emotion_counts, key=emotion_counts.get)
+            most_common_count = emotion_counts[most_common]
+        else:
+            most_common = "N/A"
+            most_common_count = 0
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Tổng lượt phát hiện", total)
+        with col2:
+            st.metric("Biểu cảm phổ biến", most_common)
+        with col3:
+            pct = (most_common_count / total * 100) if total > 0 else 0
+            st.metric("Tỉ lệ phổ biến", f"{pct:.1f}%")
+        with col4:
+            st.metric("Loại biểu cảm", f"{len(emotion_counts)}/7")
+
+        col_chart1, col_chart2 = st.columns(2)
+        with col_chart1:
+            st.subheader("Phân bố biểu cảm")
+            df_counts = pd.DataFrame({
+                'Biểu cảm': list(emotion_counts.keys()),
+                'Số lượng': list(emotion_counts.values())
+            }).set_index('Biểu cảm')
+            st.bar_chart(df_counts, color='#00ff88')
+
+        with col_chart2:
+            st.subheader("Tỉ lệ phần trăm")
+            fig, ax = plt.subplots(figsize=(5, 3.5))
+            fig.patch.set_alpha(0)
+            ax.set_facecolor('none')
+            colors = plt.cm.Set2(np.linspace(0, 1, len(emotion_counts)))
+            wedges, texts, autotexts = ax.pie(
+                list(emotion_counts.values()),
+                labels=None,
+                autopct='%1.1f%%',
+                colors=colors,
+                startangle=140,
+                textprops={'color': 'white', 'fontsize': 9},
+                pctdistance=0.75
+            )
+            for t in autotexts:
+                t.set_color('white')
+            ax.legend(
+                wedges, list(emotion_counts.keys()),
+                loc='center left', bbox_to_anchor=(1, 0.5),
+                fontsize=8, frameon=False,
+                labelcolor='white'
+            )
+            st.pyplot(fig)
+            plt.close(fig)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")
+
+        webcam_results = st.session_state.webcam_results
+        if webcam_results:
+            st.subheader("📥 Tải xuống báo cáo")
+            col_csv, col_pdf = st.columns(2)
+            with col_csv:
+                csv_data, csv_name = export_to_csv(webcam_results)
+                st.download_button(
+                    label="📥 Xuất CSV",
+                    data=csv_data,
+                    file_name=csv_name,
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+            with col_pdf:
+                pdf_data, pdf_name = export_to_pdf(webcam_results, total)
+                st.download_button(
+                    label="📥 Xuất PDF",
+                    data=pdf_data,
+                    file_name=pdf_name,
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
 
 
 def webcam_page():
@@ -510,6 +827,18 @@ PAGES = {
 
 def main():
     inject_custom_css()
+
+    if 'upload_results' not in st.session_state:
+        st.session_state.upload_results = None
+    if 'upload_annotated' not in st.session_state:
+        st.session_state.upload_annotated = None
+    if 'webcam_results' not in st.session_state:
+        st.session_state.webcam_results = []
+    if 'webcam_emotion_counts' not in st.session_state:
+        st.session_state.webcam_emotion_counts = {}
+    if 'webcam_total_detections' not in st.session_state:
+        st.session_state.webcam_total_detections = 0
+
     st.sidebar.markdown(
         "<div style='font-family:Fredoka One;font-size:1.6rem;color:#00ff88;"
         "text-shadow:0 0 20px rgba(0,255,136,0.3);padding:1rem 0;text-align:center'>✦ FaceE ✦</div>",

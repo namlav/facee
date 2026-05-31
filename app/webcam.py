@@ -4,7 +4,7 @@ import cv2
 
 from src.config import DEVICE, IMG_SIZE
 from src.predict import predict_image
-from app.inference import initialize_model, draw_emotion_on_frame
+from app.inference import initialize_model, draw_emotion_on_frame, put_unicode_text
 
 
 class WebcamProcessor:
@@ -21,8 +21,7 @@ class WebcamProcessor:
         faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
         if len(faces) == 0:
-            label = "No face detected"
-            cv2.putText(frame, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            put_unicode_text(frame, "Không phát hiện khuôn mặt", (10, 30), font_size=14, color=(0, 0, 255))
             return frame
 
         for (x, y, w, h) in faces:
