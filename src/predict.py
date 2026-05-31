@@ -72,6 +72,18 @@ def predict_image_batch(model, image_paths, device):
     return results
 
 
+def _get_font(size=18):
+    candidates = [
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/tahoma.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
+    ]
+    for path in candidates:
+        if Path(path).exists():
+            return ImageFont.truetype(path, size)
+    return ImageFont.load_default()
+
+
 def draw_prediction(image, prediction):
     if isinstance(image, str):
         image = cv2.imread(image)
@@ -85,9 +97,16 @@ def draw_prediction(image, prediction):
     if image.ndim == 2:
         image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
+    h, w = image.shape[:2]
     label = f"{prediction['emotion']}: {prediction['confidence']:.1f}%"
-    cv2.putText(image, label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-    return image
+    font = _get_font(18)
+    pil_img = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(pil_img)
+    bbox = draw.textbbox((0, 0), label, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.rectangle([(10, 10), (10 + tw + 8, 10 + th + 12)], fill=(0, 255, 0))
+    draw.text((14, 14), label, font=font, fill=(0, 0, 0))
+    return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
 
 def main():
