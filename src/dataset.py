@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-from .config import BATCH_SIZE, IMG_SIZE, RANDOM_SEED
+from .config import BATCH_SIZE, IMG_SIZE, NUM_CLASSES, RANDOM_SEED
 
 
 class FER2013Dataset(Dataset):
@@ -73,6 +73,27 @@ def split_fer2013_dataframe(df, val_split=0.1, test_split=0.1, seed=RANDOM_SEED)
         val_df = df.iloc[indices[train_end:val_end]]
         test_df = df.iloc[indices[val_end:]]
     return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
+
+
+def get_class_counts(data, num_classes=NUM_CLASSES):
+    """Count samples for every class index."""
+    labels = data['emotion'] if isinstance(data, pd.DataFrame) else pd.read_csv(data, usecols=['emotion'])['emotion']
+    return labels.value_counts().reindex(range(num_classes), fill_value=0).sort_index().astype(int)
+
+
+def get_class_weights(data, num_classes=NUM_CLASSES, power=0.5, max_weight=3.0):
+    """Compute mild inverse-frequency weights.
+
+    power=1.0 is full inverse weighting and can overcorrect badly on FER2013.
+    power=0.5 is a safer square-root correction for minority classes.
+    """
+    counts = get_class_counts(data, num_classes=num_classes).to_numpy(dtype=np.float32)
+    if np.any(counts == 0):
+        raise ValueError(f'Cannot compute class weights because some classes are missing: {counts.tolist()}')
+    weights = (counts.mean() / counts) ** power
+    weights = weights / weights.mean()
+    weights = np.clip(weights, 1.0 / max_weight, max_weight)
+    return torch.tensor(weights, dtype=torch.float32)
 
 
 def get_dataloaders(

@@ -4,6 +4,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.metrics import f1_score
 from tqdm import tqdm
 
 from .config import (
@@ -12,8 +13,22 @@ from .config import (
     RESULTS_DIR
 )
 from .model import EmotionCNN
-from .dataset import get_dataloaders
+from .dataset import get_class_weights, get_dataloaders
 from .utils import set_seed, ensure_dirs, plot_training_history
+
+
+class FocalLoss(nn.Module):
+    """Focal loss, useful when easy majority-class examples dominate training."""
+
+    def __init__(self, weight=None, gamma=1.5):
+        super().__init__()
+        self.weight = weight
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        ce_loss = nn.functional.cross_entropy(inputs, targets, weight=self.weight, reduction='none')
+        pt = torch.exp(-ce_loss)
+        return (((1.0 - pt) ** self.gamma) * ce_loss).mean()
 
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -44,6 +59,8 @@ def validate(model, dataloader, criterion, device):
     running_loss = 0.0
     correct = 0
     total = 0
+    all_labels = []
+    all_predictions = []
     with torch.no_grad():
         pbar = tqdm(dataloader, desc='Val')
         for images, labels in pbar:
@@ -54,10 +71,21 @@ def validate(model, dataloader, criterion, device):
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            all_labels.extend(labels.cpu().numpy())
+            all_predictions.extend(predicted.cpu().numpy())
             pbar.set_postfix({'loss': loss.item(), 'acc': correct / total})
     avg_loss = running_loss / total
     accuracy = correct / total
-    return avg_loss, accuracy
+    macro_f1 = f1_score(all_labels, all_predictions, average='macro', zero_division=0)
+    return avg_loss, accuracy, macro_f1
+
+
+def _selection_score(val_acc, val_macro_f1, metric):
+    if metric == 'val_acc':
+        return val_acc
+    if metric == 'macro_f1':
+        return val_macro_f1
+    return 0.5 * val_acc + 0.5 * val_macro_f1
 
 
 def _save_training_checkpoint(path, model, optimizer, epoch, val_loss, val_acc):
@@ -82,6 +110,7 @@ def train_model(
     checkpoint_dir='checkpoints',
     experiment_name='emotion_cnn',
     best_model_path=None,
+    selection_metric='balanced_score',
 ):
     checkpoint_path = Path(checkpoint_dir)
     checkpoint_path.mkdir(parents=True, exist_ok=True)
@@ -89,14 +118,16 @@ def train_model(
         best_model_path = Path(best_model_path)
         best_model_path.parent.mkdir(parents=True, exist_ok=True)
 
-    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
+    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': [], 'val_macro_f1': []}
+    best_score = -1.0
     best_val_acc = 0.0
+    best_val_macro_f1 = 0.0
     best_epoch = 0
 
     for epoch in range(1, num_epochs + 1):
         print(f'Epoch {epoch}/{num_epochs}')
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_acc = validate(model, val_loader, criterion, device)
+        val_loss, val_acc, val_macro_f1 = validate(model, val_loader, criterion, device)
 
         if scheduler is not None:
             scheduler.step()
@@ -105,12 +136,16 @@ def train_model(
         history['train_acc'].append(train_acc)
         history['val_loss'].append(val_loss)
         history['val_acc'].append(val_acc)
+        history['val_macro_f1'].append(val_macro_f1)
 
         print(f'Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}')
-        print(f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}')
+        print(f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}, Val Macro-F1: {val_macro_f1:.4f}')
 
-        if val_acc > best_val_acc:
+        score = _selection_score(val_acc, val_macro_f1, selection_metric)
+        if score > best_score:
+            best_score = score
             best_val_acc = val_acc
+            best_val_macro_f1 = val_macro_f1
             best_epoch = epoch
             torch.save(model.state_dict(), checkpoint_path / f'{experiment_name}_best.pth')
             if best_model_path is not None:
@@ -126,7 +161,13 @@ def train_model(
                 val_acc,
             )
 
-    return {'history': history, 'best_val_acc': best_val_acc, 'best_epoch': best_epoch}
+    return {
+        'history': history,
+        'best_score': best_score,
+        'best_val_acc': best_val_acc,
+        'best_val_macro_f1': best_val_macro_f1,
+        'best_epoch': best_epoch,
+    }
 
 
 def main():
@@ -144,6 +185,16 @@ def main():
     parser.add_argument('--gamma', type=float, default=0.1)
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--no_augment', action='store_true')
+    parser.add_argument('--loss', choices=['ce', 'focal'], default='ce')
+    parser.add_argument('--no_class_weights', action='store_true')
+    parser.add_argument('--class_weight_power', type=float, default=0.5)
+    parser.add_argument('--max_class_weight', type=float, default=3.0)
+    parser.add_argument('--focal_gamma', type=float, default=1.5)
+    parser.add_argument(
+        '--selection_metric',
+        choices=['balanced_score', 'val_acc', 'macro_f1'],
+        default='balanced_score',
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -158,7 +209,18 @@ def main():
 
     device = torch.device(args.device)
     model = EmotionCNN(num_classes=NUM_CLASSES).to(device)
-    criterion = nn.CrossEntropyLoss()
+    class_weights = None
+    if not args.no_class_weights:
+        class_weights = get_class_weights(
+            args.csv_path,
+            power=args.class_weight_power,
+            max_weight=args.max_class_weight,
+        ).to(device)
+        print(f'Using class weights: {[round(float(w), 4) for w in class_weights.cpu()]}')
+    if args.loss == 'focal':
+        criterion = FocalLoss(weight=class_weights, gamma=args.focal_gamma)
+    else:
+        criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.05)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
@@ -168,12 +230,18 @@ def main():
         device=device, checkpoint_dir=args.checkpoint_dir,
         experiment_name=args.experiment_name,
         best_model_path=args.best_model_path,
+        selection_metric=args.selection_metric,
     )
 
     final_path = Path(args.checkpoint_dir) / f'{args.experiment_name}_final.pth'
     torch.save(model.state_dict(), final_path)
 
-    print(f'Best validation accuracy: {result["best_val_acc"]:.4f} at epoch {result["best_epoch"]}')
+    print(
+        f'Best score: {result["best_score"]:.4f}, '
+        f'val acc: {result["best_val_acc"]:.4f}, '
+        f'val macro-F1: {result["best_val_macro_f1"]:.4f} '
+        f'at epoch {result["best_epoch"]}'
+    )
     print(f'Best model saved to: {args.best_model_path}')
     print(f'Final model saved to: {final_path}')
 
