@@ -18,13 +18,13 @@ from app.webcam import get_webcam_processor
 st.set_page_config(page_title="Facial Emotion Recognition", layout="wide")
 
 EMOJI_MAP = {
-    "Angry": "😠",
-    "Disgust": "🤢",
-    "Fear": "😨",
-    "Happy": "😊",
-    "Sad": "😢",
-    "Surprise": "😮",
-    "Neutral": "😐",
+    "Giận giữ": "😠",
+    "Ghê tởm": "🤢",
+    "Sợ hãi": "😨",
+    "Vui vẻ": "😊",
+    "Buồn bã": "😢",
+    "Kinh ngạc": "😮",
+    "Bình thường": "😐",
 }
 
 
@@ -312,13 +312,13 @@ def glass_container(content_func):
 def home_page_content():
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.subheader("About the Project")
+        st.subheader("Giới thiệu về đề tài")
         st.markdown(
-            "This system uses a deep learning Convolutional Neural Network (CNN) trained on the "
-            "**FER2013** dataset to recognize **7 basic emotions** from facial expressions in real time."
+            "Hệ thống này sử dụng mạng nơ-ron tích chập (CNN) học sâu được huấn luyện trên tập dữ liệu "
+            "**FER2013** để nhận diện **7 biểu cảm cơ bản** từ các biểu hiện khuôn mặt trong thời gian thực."
         )
         st.markdown("---")
-        st.subheader("Detected Emotions")
+        st.subheader("Các biểu cảm được phát hiện")
         cols = st.columns(7)
         for i, (emotion, emoji) in enumerate(EMOJI_MAP.items()):
             with cols[i]:
@@ -327,30 +327,30 @@ def home_page_content():
                     unsafe_allow_html=True,
                 )
     with col2:
-        st.subheader("Quick Instructions")
+        st.subheader("Hướng dẫn nhanh")
         st.markdown("""
-        1. Navigate using the **sidebar**
-        2. **Upload Prediction** – upload a photo
-        3. **Webcam** – real-time detection via camera
-        4. **About** – learn more about the project
+        1. Điều hướng bằng cách sử dụng **sidebar**
+        2. **Upload Prediction** – tải lên một ảnh
+        3. **Webcam** – phát hiện thời gian thực qua camera
+        4. **About** – tìm hiểu thêm về đề tài
         """)
     st.markdown("---")
-    st.subheader("System Workflow")
+    st.subheader("Quy trình làm việc của hệ thống")
     st.code(
-        "Input Image → Face Detection → Grayscale Conversion → Resize (48×48) → "
-        "Normalization → CNN Model → Softmax → Emotion Classification",
+        "Ảnh đầu vào → Nhận diện khuôn mặt → Chuyển đổi sang ảnh xám → Thay đổi kích thước (48×48) → "
+        "Chuẩn hóa → Mô hình CNN → Softmax → Phân loại biểu cảm",
         language="text",
     )
 
 
 def home_page():
-    st.title("Facial Emotion Recognition")
+    st.title("Nhận Diện Biểu Cảm Khuôn Mặt")
     home_page_content()
 
 
 @glass_container
 def upload_page_content():
-    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Chọn ảnh", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
         image_rgb = np.array(image.convert("RGB"))
@@ -400,8 +400,8 @@ def upload_page_content():
 
 
 def upload_page():
-    st.title("Upload & Predict")
-    st.markdown("Upload an image to detect facial emotion.")
+    st.title("Tải lên và Dự đoán biểu cảm")
+    st.markdown("Tải ảnh lên để nhận diện biểu cảm trên khuôn mặt.")
     upload_page_content()
 
 
@@ -423,7 +423,9 @@ def webcam_page_content():
         fps_display = st.empty()
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            st.error("Could not access webcam. Please check your camera permissions.")
+            st.error(
+                "Không thể truy cập webcam. Vui lòng kiểm tra quyền truy cập camera của bạn."
+            )
             st.session_state.webcam_on = False
             st.rerun()
         fps_counter = 0
@@ -432,7 +434,7 @@ def webcam_page_content():
         while st.session_state.webcam_on:
             ret, frame = cap.read()
             if not ret:
-                st.error("Failed to capture frame.")
+                st.error("Không thể chụp khung hình.")
                 break
             annotated = processor.process_frame(frame)
             annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
@@ -449,15 +451,15 @@ def webcam_page_content():
 
 
 def webcam_page():
-    st.title("Real-time Webcam Emotion Detection")
-    st.markdown("Point your face at the camera to see real-time emotion predictions.")
+    st.title("Nhận diện biểu cảm từ webcam trong thời gian thực")
+    st.markdown("Hướng khuôn mặt của bạn vào camera để xem dự đoán biểu cảm.")
     webcam_page_content()
 
 
 @glass_container
 def about_page_content():
     st.subheader("Contributor")
-    st.markdown("Built with ❤️ by **Nam Lav**")
+    st.markdown("Built with ❤️ by **NHÓM 10**")
     st.subheader("Technologies Used")
     techs = {
         "🐍": "Python",
@@ -475,19 +477,19 @@ def about_page_content():
             st.markdown(f"{emoji} **{tech}**")
     st.subheader("Model Architecture")
     st.markdown(
-        "**EmotionCNN** – a 4-block convolutional neural network:\n\n"
-        "- 4 convolutional blocks with BatchNorm, ReLU, MaxPool, Dropout\n"
-        "- Doubling filter count per block: 64 → 128 → 256 → 512\n"
-        "- Fully connected classifier (512×3×3 → 512 → 7)\n"
-        "- ~2.5M trainable parameters"
+        "**EmotionCNN** – một mạng nơ-ron tích chập 4 khối:\n\n"
+        "- 4 khối tích chập với BatchNorm, ReLU, MaxPool, Dropout\n"
+        "- Tăng gấp đôi số lượng bộ lọc trên mỗi khối: 64 → 128 → 256 → 512\n"
+        "- Bộ phân loại được kết nối đầy đủ (512×3×3 → 512 → 7)\n"
+        "- ~7 triệu tham số có thể huấn luyện"
     )
     st.subheader("Dataset")
     st.markdown(
         "**FER2013** (Facial Expression Recognition 2013):\n\n"
-        "- 35,887 grayscale 48×48 face images\n"
-        "- 7 emotion categories\n"
-        "- Training / PublicTest / PrivateTest split\n"
-        "- Kaggle competition dataset"
+        "- 35.887 hình ảnh khuôn mặt đen trắng 48×48\n"
+        "- 7 loại cảm xúc: Giận dữ, Ghê tởm, Sợ hãi, Vui vẻ, Buồn bã, Kinh ngạc, Bình thường\n"
+        "- Các giai đoạn: Huấn luyện / Kiểm thử công khai / Kiểm thử riêng tư\n"
+        "- Bộ dữ liệu cuộc thi Kaggle năm 2013 về nhận diện cảm xúc"
     )
     st.subheader("GitHub")
     st.markdown("[View on GitHub](https://github.com/namlav/facee)")
@@ -520,7 +522,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown(
         "<div style='text-align:center;color:rgba(255,255,255,0.4);font-size:0.8rem;padding:1rem 0'>"
-        "🌸 Emotional Detection</div>",
+        "🌸 NHẬN DIỆN BIỂU CẢM</div>",
         unsafe_allow_html=True,
     )
     page_class = f"page-content-{selection.replace(' ', '-').lower()}"
