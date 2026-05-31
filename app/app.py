@@ -18,7 +18,7 @@ from app.webcam import get_webcam_processor
 st.set_page_config(page_title="Facial Emotion Recognition", layout="wide")
 
 EMOJI_MAP = {
-    "Giận giữ": "😠",
+    "Giận dữ": "😠",
     "Ghê tởm": "🤢",
     "Sợ hãi": "😨",
     "Vui vẻ": "😊",
