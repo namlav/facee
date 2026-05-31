@@ -71,7 +71,7 @@ facial-emotion-recognition/
 ### Setup
 
 ```bash
-git clone https://github.com/namlav/facee
+git clone https://github.com/namlav/facee.git
 cd facee
 pip install -r requirements.txt
 ```
