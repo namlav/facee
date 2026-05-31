@@ -54,7 +54,10 @@ def evaluate_model(model, test_loader, criterion, device):
     avg_loss = test_loss / total
     acc = accuracy_score(all_labels, all_predictions)
     precision, recall, f1, _ = precision_recall_fscore_support(
-        all_labels, all_predictions, average='weighted'
+        all_labels, all_predictions, average='weighted', zero_division=0
+    )
+    _, _, macro_f1, _ = precision_recall_fscore_support(
+        all_labels, all_predictions, average='macro', zero_division=0
     )
     return {
         'loss': avg_loss,
@@ -62,6 +65,7 @@ def evaluate_model(model, test_loader, criterion, device):
         'precision': precision,
         'recall': recall,
         'f1': f1,
+        'macro_f1': macro_f1,
     }
 
 
@@ -75,7 +79,7 @@ def plot_confusion_matrix(model, dataloader, class_names, device, save_path=None
 
 def classification_report(model, dataloader, class_names, device):
     all_labels, all_predictions, _ = get_predictions(model, dataloader, device)
-    return sk_classification_report(all_labels, all_predictions, target_names=class_names)
+    return sk_classification_report(all_labels, all_predictions, target_names=class_names, zero_division=0)
 
 
 def per_class_accuracy(model, dataloader, class_names, device):
