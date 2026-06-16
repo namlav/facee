@@ -1,4 +1,8 @@
+<div align = "center">
+
 # Facial Emotion Recognition System
+[![Nam Lav](https://img.shields.io/badge/Author-Nam_Lav-0D9488?style=for-the-badge&logo=github&logoColor=white)](https://github.com/namlav)
+</div>
 
 ## Overview
 
@@ -239,13 +243,12 @@ Confusion matrices, precision/recall/F1 reports, and training curves are saved i
 - **Visualization**: Matplotlib, Seaborn
 - **Metrics**: scikit-learn
 
-## Team
+## Thanks to Contributors
 
 | Role                  | Member          |
 |-----------------------|-----------------|
 | Data Engineer & Documentation | Nguyễn Quốc Duy - [@QuocDuyNguyen](https://github.com/QuocDuyNguyen) |
 | AI Engineer                    | Nguyễn Thanh Phong - [@Phong2607-H](https://github.com/Phong2607-H)|
-| Application Engineer           | La Văn Nam (author) - [@namlav](https://github.com/namlav) |
 
 ## License
 
